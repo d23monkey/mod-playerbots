@@ -105,7 +105,7 @@ public:
                 roundedTime = roundedTime.substr(0, roundedTime.find('.') + 2);
 
                 ChatHandler(player->GetSession()).SendSysMessage(
-                    "Playerbots: bot initialization at server startup will require '" + roundedTime + "' minutes.");
+                    "Playerbots: 服务器启动时，机器人初始化将需要 '" + roundedTime + "' 分钟.");
             }
         }
     }
