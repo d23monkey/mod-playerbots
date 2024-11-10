@@ -1168,7 +1168,7 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
         ObjectGuid member = sCharacterCache->GetCharacterGuidByName(bot);
         if (!member)
         {
-            out << "character not found";
+            out << "角色不存在";
         }
         else if (master && member != master->GetGUID())
         {
@@ -1214,17 +1214,17 @@ std::string const PlayerbotHolder::ListBots(Player* master)
     std::set<std::string> bots;
     std::map<uint8, std::string> classNames;
 
-    classNames[CLASS_DEATH_KNIGHT] = "Death Knight";
-    classNames[CLASS_DRUID] = "Druid";
-    classNames[CLASS_HUNTER] = "Hunter";
-    classNames[CLASS_MAGE] = "Mage";
-    classNames[CLASS_PALADIN] = "Paladin";
-    classNames[CLASS_PRIEST] = "Priest";
-    classNames[CLASS_ROGUE] = "Rogue";
-    classNames[CLASS_SHAMAN] = "Shaman";
-    classNames[CLASS_WARLOCK] = "Warlock";
-    classNames[CLASS_WARRIOR] = "Warrior";
-    classNames[CLASS_DEATH_KNIGHT] = "DeathKnight";
+    classNames[CLASS_DEATH_KNIGHT] = "-DK";
+    classNames[CLASS_DRUID] = "-小德";
+    classNames[CLASS_HUNTER] = "-猎人";
+    classNames[CLASS_MAGE] = "-法师";
+    classNames[CLASS_PALADIN] = "-骑士";
+    classNames[CLASS_PRIEST] = "-牧师";
+    classNames[CLASS_ROGUE] = "-盗贼";
+    classNames[CLASS_SHAMAN] = "-萨满";
+    classNames[CLASS_WARLOCK] = "-术士";
+    classNames[CLASS_WARRIOR] = "-战士";
+    classNames[CLASS_DEATH_KNIGHT] = "-DK";
 
     std::map<std::string, std::string> online;
     std::vector<std::string> names;
@@ -1283,7 +1283,7 @@ std::string const PlayerbotHolder::ListBots(Player* master)
 
     std::ostringstream out;
     bool first = true;
-    out << "Bot roster: ";
+    out << "PlayerBots名单: ";
     for (std::vector<std::string>::iterator i = names.begin(); i != names.end(); ++i)
     {
         if (first)
