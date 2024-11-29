@@ -75,7 +75,7 @@ bool InventoryChangeFailureAction::Execute(Event event)
         messages[EQUIP_ERR_BAG_FULL4] = messages[EQUIP_ERR_BAG_FULL];
         messages[EQUIP_ERR_ITEM_SOLD_OUT] = messages[EQUIP_ERR_ITEM_IS_CURRENTLY_SOLD_OUT];
         messages[EQUIP_ERR_OBJECT_IS_BUSY] = "这个物品正忙";
-        messages[EQUIP_ERR_NOT_IN_COMBAT] = "I am not in combat";
+        messages[EQUIP_ERR_NOT_IN_COMBAT] = "I am in combat";
         messages[EQUIP_ERR_NOT_WHILE_DISARMED] = "解除武装时无法这么做";
         messages[EQUIP_ERR_BAG_FULL6] = messages[EQUIP_ERR_BAG_FULL];
         messages[EQUIP_ERR_CANT_EQUIP_RANK] = "等级不够";
