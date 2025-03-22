@@ -144,8 +144,8 @@ bool LfgJoinAction::JoinLFG()
     if (roleMask & PLAYER_ROLE_DAMAGE)
         _roles = "DPS";
 
-    LOG_INFO("playerbots", "Bot {} {}:{} <{}>: queues LFG, Dungeon as {} ({})", bot->GetGUID().ToString().c_str(),
-             bot->GetTeamId() == TEAM_ALLIANCE ? "A" : "H", bot->GetLevel(), bot->GetName().c_str(), _roles,
+    LOG_INFO("playerbots", "Bot {} {}:{} 级 <{}>: 加入了寻找队伍的队列, Dungeon as {} ({})", bot->GetGUID().ToString().c_str(),
+             bot->GetTeamId() == TEAM_ALLIANCE ? "联盟" : "部落", bot->GetLevel(), bot->GetName().c_str(), _roles,
              many ? "several dungeons" : dungeon->Name[0]);
 
     // Set RbotAId Browser comment
@@ -183,8 +183,8 @@ bool LfgRoleCheckAction::Execute(Event event)
 
         sLFGMgr->UpdateRoleCheck(group->GetGUID(), bot->GetGUID(), newRoles);
 
-        LOG_INFO("playerbots", "Bot {} {}:{} <{}>: LFG roles checked", bot->GetGUID().ToString().c_str(),
-                 bot->GetTeamId() == TEAM_ALLIANCE ? "A" : "H", bot->GetLevel(), bot->GetName().c_str());
+        LOG_INFO("playerbots", "Bot {} {}:{} <{}>: 寻找队伍的角色职责已确认", bot->GetGUID().ToString().c_str(),
+                 bot->GetTeamId() == TEAM_ALLIANCE ? "联盟" : "部落", bot->GetLevel(), bot->GetName().c_str());
 
         return true;
     }
@@ -207,14 +207,14 @@ bool LfgAcceptAction::Execute(Event event)
         if (bot->IsInCombat() || bot->isDead())
         {
             LOG_INFO("playerbots", "Bot {} {}:{} <{}> is in combat and refuses LFG proposal {}",
-                     bot->GetGUID().ToString().c_str(), bot->GetTeamId() == TEAM_ALLIANCE ? "A" : "H", bot->GetLevel(),
+                     bot->GetGUID().ToString().c_str(), bot->GetTeamId() == TEAM_ALLIANCE ? "联盟" : "部落", bot->GetLevel(),
                      bot->GetName().c_str(), id);
             sLFGMgr->UpdateProposal(id, bot->GetGUID(), true);
             return true;
         }
 
         LOG_INFO("playerbots", "Bot {} {}:{} <{}> accepts LFG proposal {}", bot->GetGUID().ToString().c_str(),
-                 bot->GetTeamId() == TEAM_ALLIANCE ? "A" : "H", bot->GetLevel(), bot->GetName().c_str(), id);
+                 bot->GetTeamId() == TEAM_ALLIANCE ? "联盟" : "部落", bot->GetLevel(), bot->GetName().c_str(), id);
 
         botAI->GetAiObjectContext()->GetValue<uint32>("lfg proposal")->Set(0);
 
