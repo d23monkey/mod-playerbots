@@ -32,6 +32,7 @@
 #include "ChannelMgr.h"
 #include "BroadcastHelper.h"
 #include "PlayerbotDbStore.h"
+#include "WorldSessionMgr.h"
 
 PlayerbotHolder::PlayerbotHolder() : PlayerbotAIBase(false) {}
 class PlayerbotLoginQueryHolder : public LoginQueryHolder
@@ -64,7 +65,7 @@ void PlayerbotHolder::AddPlayerBot(ObjectGuid playerGuid, uint32 masterAccountId
     if (!accountId)
         return;
     
-    WorldSession* masterSession = masterAccountId ? sWorld->FindSession(masterAccountId) : nullptr;
+    WorldSession* masterSession = masterAccountId ? sWorldSessionMgr->FindSession(masterAccountId) : nullptr;
     Player* masterPlayer = masterSession ? masterSession->GetPlayer() : nullptr;
 
     bool isRndbot = !masterAccountId;
@@ -90,7 +91,7 @@ void PlayerbotHolder::AddPlayerBot(ObjectGuid playerGuid, uint32 masterAccountId
             LOG_DEBUG("playerbots", "PlayerbotMgr not found for master player with GUID: {}", masterPlayer->GetGUID().GetRawValue());
             return;
         }
-        uint32 count = mgr->GetPlayerbotsCount();
+        uint32 count = mgr->GetPlayerbotsCount() + botLoading.size();
         if (count >= sPlayerbotAIConfig->maxAddedBots)
         {
             allowed = false;
@@ -115,7 +116,7 @@ void PlayerbotHolder::AddPlayerBot(ObjectGuid playerGuid, uint32 masterAccountId
 
     botLoading.insert(playerGuid);
     
-    if (WorldSession* masterSession = sWorld->FindSession(masterAccountId))
+    if (WorldSession* masterSession = sWorldSessionMgr->FindSession(masterAccountId))
     {
         masterSession->AddQueryHolderCallback(CharacterDatabase.DelayQueryHolder(holder))
             .AfterComplete([this](SQLQueryHolderBase const& holder)
@@ -151,7 +152,7 @@ void PlayerbotHolder::HandlePlayerBotLoginCallback(PlayerbotLoginQueryHolder con
     }
 
     uint32 masterAccount = holder.GetMasterAccountId();
-    WorldSession* masterSession = masterAccount ? sWorld->FindSession(masterAccount) : nullptr;
+    WorldSession* masterSession = masterAccount ? sWorldSessionMgr->FindSession(masterAccount) : nullptr;
 
     // Check if masterSession->GetPlayer() is valid
     Player* masterPlayer = masterSession ? masterSession->GetPlayer() : nullptr;
@@ -637,10 +638,21 @@ std::string const PlayerbotHolder::ProcessBotCommand(std::string const cmd, Obje
     bool isRandomAccount = sPlayerbotAIConfig->IsInRandomAccountList(botAccount);
     bool isMasterAccount = (masterAccountId == botAccount);
 
-    if (cmd == "add" || cmd == "login")
+    if (cmd == "add" || cmd == "addaccount" || cmd == "login")
     {
         if (ObjectAccessor::FindPlayer(guid))
             return "player already logged in";
+
+        // For addaccount command, verify it's an account name
+        if (cmd == "addaccount")
+        {
+            uint32 accountId = sCharacterCache->GetCharacterAccountIdByGuid(guid);
+            if (!accountId)
+                return "character not found";
+
+            if (!sPlayerbotAIConfig->allowAccountBots && accountId != masterAccountId)
+                return "you can only add bots from your own account";
+        }
 
         AddPlayerBot(guid, masterAccountId);
         return "ok";
@@ -815,7 +827,7 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
 
     if (!*args)
     {
-        messages.push_back("usage: list/reload/tweak/self or add/init/remove PLAYERNAME\n");
+        messages.push_back("usage: list/reload/tweak/self or add/addaccount/init/remove PLAYERNAME\n");
         messages.push_back("usage: addclass CLASSNAME");
         return messages;
     }
@@ -1129,22 +1141,48 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
     {
         std::string const s = *i;
 
-        uint32 accountId = GetAccountId(s);
-        if (!accountId)
+        if (!strcmp(cmd, "addaccount"))
         {
-            bots.insert(s);
-            continue;
-        }
-
-        QueryResult results = CharacterDatabase.Query("SELECT name FROM characters WHERE account = {}", accountId);
-        if (results)
-        {
-            do
+            // When using addaccount, first try to get account ID directly
+            uint32 accountId = GetAccountId(s);
+            if (!accountId)
             {
-                Field* fields = results->Fetch();
-                std::string const charName = fields[0].Get<std::string>();
-                bots.insert(charName);
-            } while (results->NextRow());
+                // If not found, try to get account ID from character name
+                ObjectGuid charGuid = sCharacterCache->GetCharacterGuidByName(s);
+                if (!charGuid)
+                {
+                    messages.push_back("Neither account nor character '" + s + "' found");
+                    continue;
+                }
+                accountId = sCharacterCache->GetCharacterAccountIdByGuid(charGuid);
+                if (!accountId)
+                {
+                    messages.push_back("Could not find account for character '" + s + "'");
+                    continue;
+                }
+            }
+
+            QueryResult results = CharacterDatabase.Query("SELECT name FROM characters WHERE account = {}", accountId);
+            if (results)
+            {
+                do
+                {
+                    Field* fields = results->Fetch();
+                    std::string const charName = fields[0].Get<std::string>();
+                    bots.insert(charName);
+                } while (results->NextRow());
+            }
+        }
+        else
+        {
+            // For regular add command, only add the specific character
+            ObjectGuid charGuid = sCharacterCache->GetCharacterGuidByName(s);
+            if (!charGuid)
+            {
+                messages.push_back("Character '" + s + "' not found");
+                continue;
+            }
+            bots.insert(s);
         }
     }
 

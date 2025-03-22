@@ -31,8 +31,10 @@
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotDbStore.h"
 #include "Playerbots.h"
+#include "QuestDef.h"
 #include "RandomItemMgr.h"
 #include "RandomPlayerbotFactory.h"
+#include "ReputationMgr.h"
 #include "SharedDefines.h"
 #include "SpellAuraDefines.h"
 #include "StatsWeightCalculator.h"
@@ -111,11 +113,14 @@ void PlayerbotFactory::Init()
     uint32 maxStoreSize = sSpellMgr->GetSpellInfoStoreSize();
     for (uint32 id = 1; id < maxStoreSize; ++id)
     {
-        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(id);
-        if (!spellInfo)
+        if (id == 47181 || id == 50358 || id == 47242 || id == 52639 || id == 47147 || id == 7218)  // Test Enchant
             continue;
 
-        if (id == 47181 || id == 50358 || id == 47242 || id == 52639 || id == 47147 || id == 7218)  // Test Enchant
+        if (id == 15463) // Legendary Arcane Amalgamation
+            continue;
+
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(id);
+        if (!spellInfo)
             continue;
 
         uint32 requiredLevel = spellInfo->BaseLevel;
@@ -236,25 +241,30 @@ void PlayerbotFactory::Randomize(bool incremental)
     if (pmo)
         pmo->finish();
 
-    /*
-    pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Immersive");
-    LOG_INFO("playerbots", "Initializing immersive...");
-    InitImmersive();
-    if (pmo)
-        pmo->finish();
-    */
+    // pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Immersive");
+    // LOG_INFO("playerbots", "Initializing immersive...");
+    // InitImmersive();
+    // if (pmo)
+    //     pmo->finish();
 
     if (sPlayerbotAIConfig->randomBotPreQuests)
     {
         pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Quests");
         InitInstanceQuests();
+        InitAttunementQuests();
+        if (pmo)
+            pmo->finish();
+    }
+    else
+    {
+        pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Quests");
+        InitAttunementQuests();
         if (pmo)
             pmo->finish();
     }
 
     pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Spells1");
     LOG_DEBUG("playerbots", "Initializing spells (step 1)...");
-    // bot->LearnDefaultSkills();
     bot->LearnDefaultSkills();
     InitClassSpells();
     InitAvailableSpells();
@@ -264,8 +274,6 @@ void PlayerbotFactory::Randomize(bool incremental)
     LOG_DEBUG("playerbots", "Initializing skills (step 1)...");
     pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Skills1");
     InitSkills();
-    InitSpecialSpells();
-
     // InitTradeSkills();
     if (pmo)
         pmo->finish();
@@ -293,6 +301,18 @@ void PlayerbotFactory::Randomize(bool incremental)
     if (pmo)
         pmo->finish();
 
+    pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Reputation");
+    LOG_DEBUG("playerbots", "Initializing reputation...");
+    InitReputation();
+    if (pmo)
+        pmo->finish();
+
+    LOG_DEBUG("playerbots", "Initializing special spells...");
+    pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Spells3");
+    InitSpecialSpells();
+    if (pmo)
+        pmo->finish();
+
     pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Mounts");
     LOG_DEBUG("playerbots", "Initializing mounts...");
     InitMounts();
@@ -300,11 +320,11 @@ void PlayerbotFactory::Randomize(bool incremental)
     if (pmo)
         pmo->finish();
 
-    pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Skills2");
+    // pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Skills2");
     // LOG_INFO("playerbots", "Initializing skills (step 2)...");
     // UpdateTradeSkills();
-    if (pmo)
-        pmo->finish();
+    // if (pmo)
+    //     pmo->finish();
 
     pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Equip");
     LOG_DEBUG("playerbots", "Initializing equipmemt...");
@@ -357,11 +377,17 @@ void PlayerbotFactory::Randomize(bool incremental)
     if (pmo)
         pmo->finish();
 
-    pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_EqSets");
-    LOG_DEBUG("playerbots", "Initializing second equipment set...");
-    // InitSecondEquipmentSet();
+    pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Keys");
+    LOG_DEBUG("playerbots", "Initializing keys...");
+    InitKeyring();
     if (pmo)
         pmo->finish();
+
+    // pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_EqSets");
+    // LOG_DEBUG("playerbots", "Initializing second equipment set...");
+    //    InitSecondEquipmentSet();
+    // if (pmo)
+    //     pmo->finish();
 
     if (bot->GetLevel() >= sPlayerbotAIConfig->minEnchantingBotLevel)
     {
@@ -391,16 +417,16 @@ void PlayerbotFactory::Randomize(bool incremental)
     InitGlyphs();
     // bot->SaveToDB(false, false);
 
-    // pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Guilds");
+    pmo = sPerformanceMonitor->start(PERF_MON_RNDBOT, "PlayerbotFactory_Guilds");
     // bot->SaveToDB(false, false);
     if (sPlayerbotAIConfig->randomBotGuildCount > 0)
     {
-        LOG_INFO("playerbots", "Initializing guilds...");
+        LOG_DEBUG("playerbots", "Initializing guilds...");
         InitGuild();
     }
     // bot->SaveToDB(false, false);
-    // if (pmo)
-    //    pmo->finish();
+    if (pmo)
+        pmo->finish();
 
     if (bot->GetLevel() >= 70)
     {
@@ -434,7 +460,7 @@ void PlayerbotFactory::Randomize(bool incremental)
     bot->SetHealth(bot->GetMaxHealth());
     bot->SetPower(POWER_MANA, bot->GetMaxPower(POWER_MANA));
     bot->SaveToDB(false, false);
-    // LOG_INFO("playerbots", "Initialization Done.");
+    LOG_DEBUG("playerbots", "Initialization Done.");
     if (pmo)
         pmo->finish();
 }
@@ -446,6 +472,7 @@ void PlayerbotFactory::Refresh()
     // {
     //     InitEquipment(true);
     // }
+    InitAttunementQuests();
     ClearInventory();
     InitAmmo();
     InitFood();
@@ -460,7 +487,10 @@ void PlayerbotFactory::Refresh()
     InitClassSpells();
     InitAvailableSpells();
     InitSkills();
+    InitReputation();
+    InitSpecialSpells();
     InitMounts();
+    InitKeyring();
     if (bot->GetLevel() >= sPlayerbotAIConfig->minEnchantingBotLevel)
     {
         ApplyEnchantAndGemsNew();
@@ -623,6 +653,9 @@ void PlayerbotFactory::AddConsumables()
 
 void PlayerbotFactory::InitPetTalents()
 {
+    if (bot->GetLevel() <= 70 && sPlayerbotAIConfig->limitTalentsExpansion)
+        return;
+
     Pet* pet = bot->GetPet();
     if (!pet)
     {
@@ -947,30 +980,23 @@ void PlayerbotFactory::ClearSpells()
 
 void PlayerbotFactory::ResetQuests()
 {
+    for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+    {
+        bot->SetQuestSlot(slot, 0);
+    }
     ObjectMgr::QuestMap const& questTemplates = sObjectMgr->GetQuestTemplates();
     for (ObjectMgr::QuestMap::const_iterator i = questTemplates.begin(); i != questTemplates.end(); ++i)
     {
         Quest const* quest = i->second;
 
         uint32 entry = quest->GetQuestId();
+        if (bot->GetQuestStatus(entry) == QUEST_STATUS_NONE)
+            continue;
+        
+        bot->RemoveRewardedQuest(entry);
+        bot->RemoveActiveQuest(entry, false);
 
-        // remove all quest entries for 'entry' from quest log
-        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
-        {
-            uint32 quest = bot->GetQuestSlotQuestId(slot);
-            if (quest == entry)
-            {
-                bot->SetQuestSlot(slot, 0);
-            }
-        }
-
-        // reset rewarded for restart repeatable quest
-        bot->getQuestStatusMap().erase(entry);
-        // bot->getQuestStatusMap()[entry].m_rewarded = false;
-        // bot->getQuestStatusMap()[entry].m_status = QUEST_STATUS_NONE;
     }
-    // bot->UpdateForQuestWorldObjects();
-    CharacterDatabase.Execute("DELETE FROM character_queststatus WHERE guid = {}", bot->GetGUID().GetCounter());
 }
 
 void PlayerbotFactory::InitSpells() { InitAvailableSpells(); }
@@ -1586,6 +1612,11 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
         if (level < 20 && (slot == EQUIPMENT_SLOT_FINGER1 || slot == EQUIPMENT_SLOT_FINGER2))
             continue;
 
+        if (level < 5 && (slot != EQUIPMENT_SLOT_MAINHAND) && (slot != EQUIPMENT_SLOT_OFFHAND) &&
+            (slot != EQUIPMENT_SLOT_FEET) && (slot != EQUIPMENT_SLOT_LEGS) && (slot != EQUIPMENT_SLOT_CHEST) &&
+            (slot != EQUIPMENT_SLOT_RANGED))
+            continue;
+
         Item* oldItem = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
 
         if (second_chance && oldItem)
@@ -1641,9 +1672,6 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
 
                         if (proto->Quality != desiredQuality)
                             continue;
-                        // delay heavy check
-                        // if (!CanEquipItem(proto))
-                        //     continue;
 
                         if (proto->Class == ITEM_CLASS_ARMOR &&
                             (slot == EQUIPMENT_SLOT_HEAD || slot == EQUIPMENT_SLOT_SHOULDERS ||
@@ -1659,9 +1687,6 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
                         if (slot == EQUIPMENT_SLOT_OFFHAND && bot->getClass() == CLASS_ROGUE &&
                             proto->Class != ITEM_CLASS_WEAPON)
                             continue;
-                        // delay heavy check
-                        // uint16 dest = 0;
-                        // if (CanEquipUnseenItem(slot, dest, itemId))
                         items[slot].push_back(itemId);
                     }
                 }
@@ -1755,6 +1780,10 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
                 continue;
 
             if (level < 20 && (slot == EQUIPMENT_SLOT_FINGER1 || slot == EQUIPMENT_SLOT_FINGER2))
+                continue;
+            
+            if (level < 5 && (slot != EQUIPMENT_SLOT_MAINHAND) && (slot != EQUIPMENT_SLOT_OFFHAND) &&
+                (slot != EQUIPMENT_SLOT_FEET) && (slot != EQUIPMENT_SLOT_LEGS) && (slot != EQUIPMENT_SLOT_CHEST))
                 continue;
 
             if (Item* oldItem = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
@@ -2801,7 +2830,28 @@ void PlayerbotFactory::InitAmmo()
     if (!subClass)
         return;
 
-    uint32 entry = sRandomItemMgr->GetAmmo(level, subClass);
+    std::vector<uint32> ammoEntryList = sRandomItemMgr->GetAmmo(level, subClass);
+    uint32 entry = 0;
+    for (uint32 tEntry : ammoEntryList)
+    {
+        ItemTemplate const* proto = sObjectMgr->GetItemTemplate(tEntry);
+        if (!proto)
+            continue;
+
+        // disable next expansion ammo
+        if (sPlayerbotAIConfig->limitGearExpansion && bot->GetLevel() <= 60 && tEntry >= 23728)
+            continue;
+        
+        if (sPlayerbotAIConfig->limitGearExpansion && bot->GetLevel() <= 70 && tEntry >= 35570)
+            continue;
+        
+        entry = tEntry;
+        break;
+    }
+
+    if (!entry)
+        return;
+
     uint32 count = bot->GetItemCount(entry);
     uint32 maxCount = bot->getClass() == CLASS_HUNTER ? 6000 : 1000;
 
@@ -2955,6 +3005,10 @@ void PlayerbotFactory::InitPotions()
     for (uint8 i = 0; i < 2; ++i)
     {
         uint32 effect = effects[i];
+
+        if (effect == SPELL_EFFECT_ENERGIZE && !bot->GetPower(POWER_MANA))
+            continue;
+        
         FindPotionVisitor visitor(bot, effect);
         IterateItems(&visitor);
         if (!visitor.GetResult().empty())
@@ -4219,4 +4273,157 @@ void PlayerbotFactory::IterateItemsInBank(IterateItemsVisitor* visitor)
             }
         }
     }
+}
+
+void PlayerbotFactory::InitKeyring()
+{
+    if (!bot)
+        return;
+
+    ReputationMgr& repMgr = bot->GetReputationMgr(); // Reference, use . instead of ->
+    
+    std::vector<std::pair<uint32, uint32>> keysToCheck;
+
+    // Reputation-based Keys (Honored requirement)
+    if (repMgr.GetRank(sFactionStore.LookupEntry(1011)) >= REP_HONORED && !bot->HasItemCount(30633, 1))
+        keysToCheck.emplace_back(1011, 30633); // Lower City - Auchenai Key
+    if (repMgr.GetRank(sFactionStore.LookupEntry(942)) >= REP_HONORED && !bot->HasItemCount(30623, 1))
+        keysToCheck.emplace_back(942, 30623); // Cenarion Expedition - Reservoir Key
+    if (repMgr.GetRank(sFactionStore.LookupEntry(989)) >= REP_HONORED && !bot->HasItemCount(30635, 1))
+        keysToCheck.emplace_back(989, 30635); // Keepers of Time - Key of Time
+    if (repMgr.GetRank(sFactionStore.LookupEntry(935)) >= REP_HONORED && !bot->HasItemCount(30634, 1))
+        keysToCheck.emplace_back(935, 30634); // The Sha'tar - Warpforged Key
+
+    // Faction-specific Keys (Honored requirement)
+    if (bot->GetTeamId() == TEAM_ALLIANCE && repMgr.GetRank(sFactionStore.LookupEntry(946)) >= REP_HONORED && !bot->HasItemCount(30622, 1))
+        keysToCheck.emplace_back(946, 30622); // Honor Hold - Flamewrought Key (Alliance)
+    if (bot->GetTeamId() == TEAM_HORDE && repMgr.GetRank(sFactionStore.LookupEntry(947)) >= REP_HONORED && !bot->HasItemCount(30637, 1))
+        keysToCheck.emplace_back(947, 30637); // Thrallmar - Flamewrought Key (Horde)
+
+    // Keys that do not require Rep or Faction
+    // Shattered Halls Key, Shadow Labyrinth Key, Key to the Arcatraz, Master's Key
+    std::vector<uint32> nonRepKeys = {28395, 27991, 31084, 24490};
+    for (uint32 keyId : nonRepKeys)
+    {
+        if (!bot->HasItemCount(keyId, 1))
+            keysToCheck.emplace_back(0, keyId);
+    }
+
+    // Assign keys
+    for (auto const& keyPair : keysToCheck)
+    {
+        uint32 keyId = keyPair.second;
+        if (keyId > 0)
+        {
+            if (Item* newItem = StoreNewItemInInventorySlot(bot,keyId, 1))
+            {
+                newItem->AddToUpdateQueueOf(bot);
+            }
+        }
+    }
+}
+void PlayerbotFactory::InitReputation()
+{
+    if (!bot)
+        return;
+
+    if (bot->GetLevel() < 70)
+        return; // Only apply for level 70+ bots
+
+    ReputationMgr& repMgr = bot->GetReputationMgr();
+
+    // List of factions that require Honored reputation for heroic keys
+    std::vector<uint32> factions = {
+        1011, // Lower City
+        942,  // Cenarion Expedition
+        989,  // Keepers of Time
+        935   // The Sha'tar
+    };
+
+    // Add faction-specific reputation
+    if (bot->GetTeamId() == TEAM_ALLIANCE)
+        factions.push_back(946); // Honor Hold (Alliance)
+    else if (bot->GetTeamId() == TEAM_HORDE)
+        factions.push_back(947); // Thrallmar (Horde)
+
+    // Set reputation to Honored for each required faction
+    for (uint32 factionId : factions)
+    {
+        FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionId);
+        if (!factionEntry)
+            continue;
+
+        // Bottom of Honored rank
+        int32 honoredRep = ReputationMgr::ReputationRankToStanding(static_cast<ReputationRank>(REP_HONORED - 1)) + 1;
+
+        // Get bot's current reputation with this faction
+        int32 currentRep = repMgr.GetReputation(factionEntry);
+
+        // Only set reputation if it's lower than the required Honored value
+        if (currentRep < honoredRep)
+        {
+            repMgr.SetReputation(factionEntry, honoredRep);
+        }
+    }
+}
+
+void PlayerbotFactory::InitAttunementQuests()
+{
+    uint32 level = bot->GetLevel();
+    if (level < 55)
+        return; // Only apply for level 55+ bots
+
+    uint32 currentXP = bot->GetUInt32Value(PLAYER_XP);
+
+    // List of attunement quest IDs
+    std::list<uint32> attunementQuestsTBC = {
+        // Caverns of Time - Part 1
+        10279, // To The Master's Lair
+        10277, // The Caverns of Time
+
+        // Caverns of Time - Part 2 (Escape from Durnholde Keep)
+        10282, // Old Hillsbrad
+        10283, // Taretha's Diversion
+        10284, // Escape from Durnholde
+        10285, // Return to Andormu
+
+        // Caverns of Time - Part 2 (The Black Morass)
+        10296, // The Black Morass
+        10297, // The Opening of the Dark Portal
+        10298, // Hero of the Brood
+
+        // Magister's Terrace Attunement
+        11481, // Crisis at the Sunwell
+        11482, // Duty Calls
+        11488, // Magisters' Terrace
+        11490, // The Scryer's Scryer
+        11492  // Hard to Kill
+    };
+
+    // Complete all level-appropriate attunement quests for the bot
+    if (level >= 60)
+    {
+        std::list<uint32> questsToComplete;
+
+        // Check each quest status before adding to the completion list
+        for (uint32 questId : attunementQuestsTBC)
+        {
+            QuestStatus questStatus = bot->GetQuestStatus(questId);
+
+            if (questStatus == QUEST_STATUS_NONE) // Quest not yet taken/completed
+            {
+                questsToComplete.push_back(questId);
+            }
+        }
+
+        // Only complete quests that haven't been finished yet
+        if (!questsToComplete.empty())
+        {
+            InitQuests(questsToComplete);
+        }
+    }
+
+    // Reset XP so bot's level remains unchanged
+    bot->GiveLevel(level);
+    bot->SetUInt32Value(PLAYER_XP, currentXP);
 }
