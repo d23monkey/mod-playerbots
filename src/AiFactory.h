@@ -9,13 +9,14 @@
 #include <map>
 
 #include "Common.h"
+#include "botcommon.h"
 
 class AiObjectContext;
 class Engine;
 class Player;
 class PlayerbotAI;
 
-enum BotRoles : uint8;
+enum BotRoles : uint32;
 
 class AiFactory
 {

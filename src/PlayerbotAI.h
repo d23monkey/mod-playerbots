@@ -259,13 +259,15 @@ enum ActivityType
     MAX_ACTIVITY_TYPE
 };
 
-enum BotRoles : uint8
+/* enum BotRoles : uint32
 {
-    BOT_ROLE_NONE = 0x00,
-    BOT_ROLE_TANK = 0x01,
-    BOT_ROLE_HEALER = 0x02,
-    BOT_ROLE_DPS = 0x04
-};
+    BOT_ROLE_NONE       = 0x00,
+    BOT_ROLE_TANK       = 0x01,
+    BOT_ROLE_TANK_OFF   = 0x02,
+	BOT_ROLE_DPS        = 0x04,
+    BOT_ROLE_HEALER     = 0x08
+    
+};*/
 
 enum HUNTER_TABS
 {
